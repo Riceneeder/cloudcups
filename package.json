@@ -1,0 +1,17 @@
+{
+  "name": "cloudcups",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:frontend": "bun run --cwd frontend dev",
+    "dev:backend": "bun run --cwd backend dev",
+    "build:frontend": "bun run --cwd frontend build",
+    "build:backend": "bun build --target=bun --outdir=dist ./backend/server.ts",
+    "build": "bun run build:frontend && bun run build:backend",
+    "compile": "./build.sh",
+    "start": "bun run --cwd backend start"
+  }
+}

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  cloudcups:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - /var/run/cups/cups.sock:/var/run/cups/cups.sock
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    networks:
+      - cloudcups-network
+    depends_on:
+      - cups
+
+  cups:
+    image: olbat/cupsd:latest
+    ports:
+      - "631:631"
+    volumes:
+      - cups-config:/etc/cups
+      - cups-logs:/var/log/cups
+    environment:
+      - CUPSADMIN=admin
+      - CUPSPASSWORD=admin123
+    restart: unless-stopped
+    networks:
+      - cloudcups-network
+    privileged: true
+
+volumes:
+  cups-config:
+  cups-logs:
+
+networks:
+  cloudcups-network:
+    driver: bridge

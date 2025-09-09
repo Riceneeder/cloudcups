@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 文档和 Wiki
+    url: https://github.com/your-username/cloudcups/wiki
+    about: 查看项目文档和常见问题解答
+  - name: 💬 讨论区
+    url: https://github.com/your-username/cloudcups/discussions
+    about: 参与社区讨论，分享想法和经验
+  - name: 🔧 技术支持
+    url: https://github.com/your-username/cloudcups/discussions/categories/q-a
+    about: 获取技术支持和解答

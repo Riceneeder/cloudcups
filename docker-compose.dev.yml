@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  cloudcups-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/frontend/node_modules
+      - /app/backend/node_modules
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=DEBUG
+    restart: unless-stopped
+    networks:
+      - cloudcups-dev-network
+    command: |
+      sh -c "
+        bun run dev:backend &
+        bun run dev:frontend &
+        wait
+      "
+
+networks:
+  cloudcups-dev-network:
+    driver: bridge

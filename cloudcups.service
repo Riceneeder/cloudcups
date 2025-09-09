@@ -1,0 +1,32 @@
+[Unit]
+Description=CloudCups 云打印服务
+Documentation=https://github.com/your-repo/cloudcups
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/cloudcups
+ExecStart=/opt/cloudcups/cloudcups
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudcups
+
+# 环境变量
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# 安全设置 (root用户运行时的基本设置)
+PrivateTmp=true
+ReadWritePaths=/opt/cloudcups/logs
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

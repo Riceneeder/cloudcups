@@ -1,0 +1,19 @@
+{
+  "name": "cloudcups-backend",
+  "version": "1.0.0",
+  "main": "server.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch server.ts",
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "@types/bun": "^1.2.21",
+    "elysia": "^0.7.0",
+    "node-cups": "^1.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.4.5"
+  }
+}

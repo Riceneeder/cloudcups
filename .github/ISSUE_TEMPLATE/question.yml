@@ -1,0 +1,67 @@
+name: Question
+description: 询问问题或寻求帮助
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        有问题需要帮助？请填写以下信息，我们会尽快回复！
+
+  - type: textarea
+    id: question-description
+    attributes:
+      label: 问题描述
+      description: 详细描述您的问题
+      placeholder: 我想了解如何...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: question-category
+    attributes:
+      label: 问题类别
+      description: 您的问题属于哪个类别？
+      options:
+        - 安装和配置
+        - 使用方法
+        - API 使用
+        - 故障排除
+        - 开发相关
+        - 部署相关
+        - 性能相关
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景信息
+      description: 提供相关的背景信息和您已经尝试的方法
+      placeholder: |
+        我正在尝试...
+        我已经尝试了...
+        我查看了...
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      description: 如果相关，请提供您的环境信息
+      placeholder: |
+        操作系统: Ubuntu 20.04
+        Bun 版本: 1.0.0
+        CUPS 版本: 2.3.3
+
+  - type: checkboxes
+    id: research-done
+    attributes:
+      label: 我已经
+      description: 在提问之前，请确认您已经进行了基本的研究
+      options:
+        - label: 阅读了 README 文档
+          required: true
+        - label: 搜索了现有的 Issues
+          required: true
+        - label: 查看了项目 Wiki（如果有）

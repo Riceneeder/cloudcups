@@ -1,0 +1,59 @@
+name: 'Stale Issue Handler'
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天运行一次
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v8
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Issue 配置
+          stale-issue-message: |
+            这个 Issue 已经 30 天没有活动了。如果这个问题仍然相关，请添加评论说明当前状态。
+            否则，这个 Issue 将在 7 天后自动关闭。
+            
+            This issue has been inactive for 30 days. If this issue is still relevant, 
+            please add a comment describing the current status. Otherwise, this issue 
+            will be automatically closed in 7 days.
+          
+          close-issue-message: |
+            这个 Issue 因为长时间没有活动而被自动关闭。如果问题仍然存在，请创建新的 Issue。
+            
+            This issue was automatically closed due to inactivity. If the problem persists, 
+            please create a new issue.
+          
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'pinned,security,enhancement'
+          
+          # PR 配置
+          stale-pr-message: |
+            这个 Pull Request 已经 30 天没有活动了。如果您仍在处理这个 PR，请添加评论说明当前状态。
+            否则，这个 PR 将在 7 天后自动关闭。
+            
+            This pull request has been inactive for 30 days. If you're still working on this PR, 
+            please add a comment describing the current status. Otherwise, this PR will be 
+            automatically closed in 7 days.
+          
+          close-pr-message: |
+            这个 Pull Request 因为长时间没有活动而被自动关闭。如果您想继续这个工作，请重新打开或创建新的 PR。
+            
+            This pull request was automatically closed due to inactivity. If you want to continue 
+            this work, please reopen or create a new pull request.
+          
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'pinned,security'
+          
+          # 时间设置
+          days-before-stale: 30
+          days-before-close: 7
+          
+          # 其他配置
+          operations-per-run: 100
+          remove-stale-when-updated: true
+          ascending: true

@@ -1,0 +1,232 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        bun-version: [1.0.0, latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: ${{ matrix.bun-version }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cups libcups2-dev
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Type check
+      run: |
+        cd frontend && bun run type-check
+        cd ../backend && bun run type-check
+    
+    - name: Build frontend
+      run: bun run build:frontend
+    
+    - name: Build backend
+      run: bun run build:backend
+    
+    - name: Run tests
+      run: bun test
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts-${{ matrix.bun-version }}
+        path: |
+          frontend/dist/
+          dist/
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run ESLint
+      run: |
+        cd frontend && bun run lint
+        cd ../backend && bun run lint
+    
+    - name: Check formatting
+      run: |
+        cd frontend && bun run format:check
+        cd ../backend && bun run format:check
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run security audit
+      run: bun audit
+    
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  build-binary:
+    name: Build Binary
+    needs: [test, lint]
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: darwin
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+    
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cups libcups2-dev
+    
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # macOS has CUPS built-in
+        echo "CUPS is pre-installed on macOS"
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Build binary
+      run: bun run compile
+    
+    - name: Test binary
+      run: |
+        chmod +x deploy/cloudcups
+        # Basic test to ensure binary can start
+        timeout 10s ./deploy/cloudcups || [ $? -eq 124 ]
+    
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: cloudcups-${{ matrix.platform }}
+        path: |
+          deploy/
+        retention-days: 30
+
+  release:
+    name: Release
+    needs: [build-binary]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cloudcups-linux
+        path: ./artifacts/linux/
+    
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cloudcups-darwin
+        path: ./artifacts/darwin/
+    
+    - name: Create release archives
+      run: |
+        cd artifacts/linux && tar -czf ../../cloudcups-linux-x64.tar.gz *
+        cd ../darwin && tar -czf ../../cloudcups-darwin-x64.tar.gz *
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          cloudcups-linux-x64.tar.gz
+          cloudcups-darwin-x64.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Build Docker Image
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/cloudcups:latest
+          ${{ secrets.DOCKER_USERNAME }}/cloudcups:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
