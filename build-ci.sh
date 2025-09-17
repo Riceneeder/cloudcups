@@ -17,12 +17,6 @@ else
     echo "⚠️ 本地环境，建议使用 ./build.sh"
 fi
 
-# 清理之前的构建
-echo "📁 清理构建目录..."
-rm -rf "$PROJECT_ROOT/dist"
-rm -rf "$PROJECT_ROOT/cloudcups" 
-rm "$PROJECT_ROOT/cloudcups.exe"
-
 # 检查依赖
 echo "🔍 检查构建依赖..."
 if ! command -v bun &> /dev/null; then
