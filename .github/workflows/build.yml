@@ -1,0 +1,85 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        package-type: [deb, rpm]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: Install dependencies
+      run: |
+        bun install
+        cd frontend && bun install
+        cd ../backend && bun install
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cups cups-client
+        # Install dpkg-deb (usually pre-installed)
+        sudo apt-get install -y dpkg-dev
+        # Install RPM build tools
+        sudo apt-get install -y rpm
+        
+    - name: Build project
+      run: |
+        chmod +x build-ci.sh
+        ./build-ci.sh
+        
+    - name: Build packages
+      run: |
+        cd packaging
+        chmod +x build-ci-packages.sh
+        ./build-ci-packages.sh ${{ matrix.package-type }}
+        
+    - name: Upload DEB artifact
+      if: matrix.package-type == 'deb'
+      uses: actions/upload-artifact@v4
+      with:
+        name: cloudcups-deb
+        path: packaging/cloudcups_*.deb
+        retention-days: 7
+        
+    - name: Upload RPM artifact
+      if: matrix.package-type == 'rpm'
+      uses: actions/upload-artifact@v4
+      with:
+        name: cloudcups-rpm
+        path: packaging/cloudcups-*.rpm
+        retention-days: 7
+        
+    - name: Test DEB package installation
+      if: matrix.package-type == 'deb'
+      run: |
+        # Test package installation (dry run)
+        sudo dpkg --dry-run -i packaging/cloudcups_*.deb || true
+        # Check package contents
+        dpkg-deb -c packaging/cloudcups_*.deb
+        dpkg-deb -I packaging/cloudcups_*.deb
+        
+    - name: Test RPM package installation
+      if: matrix.package-type == 'rpm'
+      run: |
+        # Test package installation (dry run)
+        sudo rpm -i --test packaging/cloudcups-*.rpm || true
+        # Check package contents
+        rpm -qpl packaging/cloudcups-*.rpm
+        rpm -qpi packaging/cloudcups-*.rpm

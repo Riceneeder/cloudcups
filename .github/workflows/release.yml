@@ -1,0 +1,192 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  PACKAGE_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${PACKAGE_VERSION#v}
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "tag=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          # Extract changelog for this version
+          awk -v ver="${{ steps.version.outputs.version }}" '
+            /^## / { if (found) exit; if ($0 ~ ver) found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > current_changelog.txt
+        else
+          cat > current_changelog.txt << 'EOF'
+        🚀 CloudCups ${{ steps.version.outputs.version }} 发布
+
+        ## 新功能
+        - 完整的 Linux 发行版安装包支持
+        - 自动化的服务管理和开机自启动
+        - 支持 DEB 和 RPM 包格式
+
+        ## 安装方法
+
+        ### Ubuntu/Debian
+        ```bash
+        sudo dpkg -i cloudcups_${{ steps.version.outputs.version }}_amd64.deb
+        sudo apt-get install -f  # 如果有依赖问题
+        ```
+
+        ### RHEL/CentOS/Fedora
+        ```bash
+        sudo dnf install cloudcups-${{ steps.version.outputs.version }}-1.*.x86_64.rpm
+        ```
+
+        ## 使用方法
+        安装后访问: http://localhost:3000
+
+        ## 服务管理
+        ```bash
+        systemctl status cloudcups    # 查看状态
+        systemctl restart cloudcups   # 重启服务
+        journalctl -u cloudcups -f    # 查看日志
+        ```
+        EOF
+        fi
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: CloudCups ${{ steps.version.outputs.version }}
+        body_path: current_changelog.txt
+        draft: false
+        prerelease: false
+
+  build-packages:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        package-type: [deb, rpm]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${PACKAGE_VERSION#v}
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: Install dependencies
+      run: |
+        bun install
+        cd frontend && bun install
+        cd ../backend && bun install
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cups cups-client dpkg-dev rpm
+        
+    - name: Update package version
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        # Update DEB package version
+        sed -i "s/^Version:.*/Version: ${VERSION}/" packaging/deb/DEBIAN/control
+        # Update RPM package version
+        sed -i "s/^Version:.*/Version: ${VERSION}/" packaging/rpm/cloudcups.spec
+        # Update package.json version
+        sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json
+        sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" backend/package.json
+        
+    - name: Build project
+      run: |
+        chmod +x build-ci.sh
+        ./build-ci.sh
+        
+    - name: Build packages
+      run: |
+        cd packaging
+        chmod +x build-ci-packages.sh
+        ./build-ci-packages.sh ${{ matrix.package-type }}
+        
+    - name: Upload packages to release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.PACKAGE_VERSION }}
+        files: |
+          packaging/*.deb
+          packaging/*.rpm
+        
+  update-readme:
+    needs: [create-release, build-packages]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${PACKAGE_VERSION#v}
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "tag=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+        
+    - name: Update README with latest release info
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        TAG="${{ steps.version.outputs.tag }}"
+        
+        # Add download badges to README if not exists
+        if ! grep -q "Download" README.md; then
+          cat > temp_header.md << 'EOF'
+        ## 📦 下载安装包
+
+        [![DEB Package](https://img.shields.io/badge/DEB-Download-blue?style=for-the-badge&logo=debian)](https://github.com/Riceneeder/cloudcups/releases/latest)
+        [![RPM Package](https://img.shields.io/badge/RPM-Download-red?style=for-the-badge&logo=redhat)](https://github.com/Riceneeder/cloudcups/releases/latest)
+        [![Release](https://img.shields.io/github/v/release/Riceneeder/cloudcups?style=for-the-badge)](https://github.com/Riceneeder/cloudcups/releases/latest)
+
+        EOF
+          cat temp_header.md README.md > temp_readme.md
+          mv temp_readme.md README.md
+          rm temp_header.md
+        fi
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git diff --staged --quiet || git commit -m "docs: update README with release ${{ steps.version.outputs.tag }} download links"
+        git push origin main || true

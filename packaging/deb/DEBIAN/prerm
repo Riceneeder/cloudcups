@@ -1,0 +1,30 @@
+#!/bin/bash
+# prerm script for cloudcups
+
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # 停止服务
+        if systemctl is-active --quiet cloudcups.service; then
+            echo "停止 CloudCups 服务..."
+            systemctl stop cloudcups.service
+        fi
+        
+        # 禁用服务
+        if systemctl is-enabled --quiet cloudcups.service; then
+            echo "禁用 CloudCups 服务..."
+            systemctl disable cloudcups.service
+        fi
+        ;;
+    failed-upgrade)
+        ;;
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

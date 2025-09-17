@@ -1,0 +1,16 @@
+Package: cloudcups
+Version: 1.0.0
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: cups, cups-client, libc6 (>= 2.31)
+Maintainer: github.com/Riceneeder
+Description: CloudCups 云打印服务
+ CloudCups 是一个基于 CUPS 的云打印解决方案，提供 Web 界面来管理和监控打印任务。
+ .
+ 主要功能：
+  - Web 界面管理打印任务
+  - 实时打印状态监控
+  - 打印队列管理
+  - 支持多种打印机类型
+Homepage: https://github.com/Riceneeder/cloudcups

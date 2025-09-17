@@ -1,0 +1,34 @@
+#!/bin/bash
+# postrm script for cloudcups
+
+set -e
+
+case "$1" in
+    purge)
+        # 清理用户数据
+        echo "清理 CloudCups 数据..."
+        
+        # 删除服务用户
+        if id "cloudcups" &>/dev/null; then
+            userdel cloudcups 2>/dev/null || true
+        fi
+        
+        # 删除日志文件（可选）
+        rm -rf /opt/cloudcups/logs 2>/dev/null || true
+        
+        # 重新加载 systemd
+        systemctl daemon-reload
+        
+        echo "CloudCups 已完全卸载"
+        ;;
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

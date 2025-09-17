@@ -81,7 +81,7 @@ xcode-select --install
 ### 3. 克隆并安装项目
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Riceneeder/cloudcups.git
 cd cloudcups
 bun install
 ```

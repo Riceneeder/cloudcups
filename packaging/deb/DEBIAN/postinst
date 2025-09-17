@@ -1,0 +1,35 @@
+#!/bin/bash
+# postinst script for cloudcups
+
+set -e
+
+# 创建 cloudcups 用户（如果不存在）
+if ! id "cloudcups" &>/dev/null; then
+    useradd -r -s /bin/false -d /opt/cloudcups -c "CloudCups service user" cloudcups
+fi
+
+# 设置目录权限
+chown -R cloudcups:cloudcups /opt/cloudcups
+chmod 755 /opt/cloudcups
+chmod +x /opt/cloudcups/cloudcups
+
+# 创建日志目录
+mkdir -p /opt/cloudcups/logs
+chown cloudcups:cloudcups /opt/cloudcups/logs
+
+# 重新加载 systemd
+systemctl daemon-reload
+
+# 启用并启动服务
+systemctl enable cloudcups.service
+systemctl start cloudcups.service
+
+echo "CloudCups 安装完成！"
+echo "服务已启动并设置为开机自启动"
+echo "Web 界面: http://localhost:3000"
+echo "查看服务状态: systemctl status cloudcups"
+echo "查看日志: journalctl -u cloudcups -f"
+
+#DEBHELPER#
+
+exit 0
