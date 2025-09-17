@@ -20,7 +20,8 @@ fi
 # 清理之前的构建
 echo "📁 清理构建目录..."
 rm -rf "$PROJECT_ROOT/dist"
-rm -f "$PROJECT_ROOT/cloudcups" "$PROJECT_ROOT/cloudcups.exe"
+rm -rf "$PROJECT_ROOT/cloudcups" 
+rm "$PROJECT_ROOT/cloudcups.exe"
 
 # 检查依赖
 echo "🔍 检查构建依赖..."
